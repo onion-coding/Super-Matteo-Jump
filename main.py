@@ -18,22 +18,24 @@ class GameView(arcade.Window):
 
         super().__init__(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
 
-        self._spawn_timer = 0
-
         self.player_texture = None
         self.player_sprite = None
         self.player_list = None
-
         self.platform_list = None
         self.obstacle_list = None
         self.obstacle = None
-        self.difficulty = 1
-        self.score = 1
+        self.obstacles_data = None
+        self.physics_engine = None
+        self.game_over = False
 
     def setup(self):
 
         self.player_texture = arcade.load_texture(
             "images/character/matteo_idle.png")
+
+        self._spawn_timer = 0
+        self.difficulty = 1
+        self.score = 1
 
         self.player_sprite = arcade.Sprite(self.player_texture)
         self.player_sprite.center_x = 64
@@ -73,6 +75,10 @@ class GameView(arcade.Window):
         self.platform_list.draw()
         self.obstacle_list.draw()
 
+        if self.game_over:
+            arcade.draw_text("GAME OVER", WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2,
+                             arcade.color.RED, 50, anchor_x="center", anchor_y="center")
+
         arcade.draw_text(
             f"{int(self.score):05}",
             WINDOW_WIDTH * 0.98,
@@ -85,39 +91,35 @@ class GameView(arcade.Window):
 
     def on_update(self, delta_time):
 
-        self.score += delta_time * self.difficulty * 15
+        if not self.game_over:
+            self.physics_engine.update()
 
-        if self.difficulty < 3.5:
-            self.difficulty += 0.03 * delta_time
+            self.score += delta_time * self.difficulty * 15
 
-        self._spawn_timer += delta_time
-        if self._spawn_timer > 1:
-            print(self._spawn_timer)
-            self._spawn_timer = 0
-            filename, scale, y = random.choice(self.obstacles_data)
-            obs = arcade.Sprite("images/obstacles/" + filename, scale=scale)
-            obs.center_x = WINDOW_WIDTH + 50
-            obs.center_y = y
-            self.obstacle_list.append(obs)
+            if self.difficulty < 3.5:
+                self.difficulty += 0.03 * delta_time
 
-        for platform in self.platform_list:
-            platform.center_x -= TILE_SPEED * self.difficulty
-            if platform.right < 0:
-                platform.left = WINDOW_WIDTH
+            self._spawn_timer += delta_time
+            if self._spawn_timer > 1:
+                print(self._spawn_timer)
+                self._spawn_timer = 0
+                filename, scale, y = random.choice(self.obstacles_data)
+                obs = arcade.Sprite("images/obstacles/" + filename, scale=scale)
+                obs.center_x = WINDOW_WIDTH + 50
+                obs.center_y = y
+                self.obstacle_list.append(obs)
 
-        for lawnmower in self.obstacle_list:
-            lawnmower.center_x -= TILE_SPEED * self.difficulty
-            if lawnmower.right <0:
-                pass
+            for obs in self.obstacle_list:
+                obs.center_x -= TILE_SPEED * self.difficulty
 
-        collided = arcade.check_for_collision_with_list(
-            self.player_sprite, self.obstacle_list
-        )
+            for platform in self.platform_list:
+                platform.center_x -= TILE_SPEED * self.difficulty
+                if platform.right < 0:
+                    platform.left = WINDOW_WIDTH
 
-        self.physics_engine.update()
-
-        for _ in collided:
-            print("hit a lawn mower")
+            collided = arcade.check_for_collision_with_list(self.player_sprite, self.obstacle_list)
+            if collided:
+                self.game_over = True
 
     def on_key_press(self, key, modifiers):
 
@@ -127,6 +129,10 @@ class GameView(arcade.Window):
         if key == arcade.key.UP or key == arcade.key.W or key == arcade.key.SPACE:
             if self.physics_engine.can_jump():
                 self.player_sprite.change_y = PLAYER_JUMP_SPEED
+
+        if self.game_over:
+            self.setup()
+            self.game_over = False
 
     def on_key_release(self, key, modifiers):
         pass
