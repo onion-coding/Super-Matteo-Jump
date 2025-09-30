@@ -5,8 +5,7 @@ WINDOW_WIDTH = 1080
 WINDOW_HEIGHT = 360
 WINDOW_TITLE = "Super Matteo Jump"
 TILE_SCALING = 0.1
-TILE_SPEED = 6
-PLAYER_MOVEMENT_SPEED = 5
+TILE_SPEED = 8
 GRAVITY = 0.7
 PLAYER_JUMP_SPEED = 17
 
@@ -14,8 +13,6 @@ class GameView(arcade.Window):
     """
     Main application class.
     """
-    def update(self):
-            self.center_x -= TILE_SPEED
 
     def __init__(self):
 
@@ -30,6 +27,8 @@ class GameView(arcade.Window):
         self.platform_list = None
         self.obstacle_list = None
         self.obstacle = None
+        self.difficulty = 1
+        self.score = 1
 
     def setup(self):
 
@@ -60,7 +59,6 @@ class GameView(arcade.Window):
             ("doggy.png", TILE_SCALING, 70),
             ("bird.png", TILE_SCALING, 170)
         ]
-        self._spawn_timer = 0
 
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player_sprite, platforms=self.platform_list, gravity_constant=GRAVITY
@@ -75,10 +73,26 @@ class GameView(arcade.Window):
         self.platform_list.draw()
         self.obstacle_list.draw()
 
+        arcade.draw_text(
+            f"{int(self.score):05}",
+            WINDOW_WIDTH * 0.98,
+            WINDOW_HEIGHT * 0.95,
+            arcade.color.BLACK,
+            18,
+            anchor_x="right",
+            anchor_y="top"
+        )
+
     def on_update(self, delta_time):
+
+        self.score += delta_time * self.difficulty * 15
+
+        if self.difficulty < 3.5:
+            self.difficulty += 0.03 * delta_time
 
         self._spawn_timer += delta_time
         if self._spawn_timer > 1:
+            print(self._spawn_timer)
             self._spawn_timer = 0
             filename, scale, y = random.choice(self.obstacles_data)
             obs = arcade.Sprite("images/obstacles/" + filename, scale=scale)
@@ -86,21 +100,21 @@ class GameView(arcade.Window):
             obs.center_y = y
             self.obstacle_list.append(obs)
 
-        self.physics_engine.update()
-
         for platform in self.platform_list:
-            platform.center_x -= TILE_SPEED
+            platform.center_x -= TILE_SPEED * self.difficulty
             if platform.right < 0:
                 platform.left = WINDOW_WIDTH
 
         for lawnmower in self.obstacle_list:
-            lawnmower.center_x -= TILE_SPEED
+            lawnmower.center_x -= TILE_SPEED * self.difficulty
             if lawnmower.right <0:
                 pass
 
         collided = arcade.check_for_collision_with_list(
             self.player_sprite, self.obstacle_list
         )
+
+        self.physics_engine.update()
 
         for _ in collided:
             print("hit a lawn mower")
